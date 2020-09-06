@@ -1,2 +1,1 @@
-# csp
-Constraint-satisfaction Problems
+# Constraint-satisfaction Problems
