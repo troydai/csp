@@ -3,33 +3,34 @@ package csp
 import "fmt"
 
 type (
+	// Assignment is a set of domain to variable assignemtn
+	Assignment map[VariableKey]DomainKey
+
 	// Constraint defines the CSP's constrains
 	Constraint interface {
-		Variables() []Variable
-		Satisfied(assignment map[Variable]Domain) bool
-	}
-
-	// Variable define the interface of the variables in a CSP solution
-	Variable interface {
-	}
-
-	// Domain define the interface of possible domains of a variable
-	Domain interface {
+		Variables() []VariableKey
+		Satisfied(assignment Assignment) bool
 	}
 
 	// Solution is a CSP solution
 	Solution struct {
-		Variables   []Variable
-		Domains     map[Variable][]Domain
-		Constraints map[Variable][]Constraint
+		Variables   []VariableKey
+		Domains     map[VariableKey][]DomainKey
+		Constraints map[VariableKey][]Constraint
 	}
+
+	// VariableKey identify variable
+	VariableKey int
+
+	// DomainKey identify domain
+	DomainKey int
 )
 
 // NewSolution creates a new CSP solution
-func NewSolution(variables []Variable, domains map[Variable][]Domain) (*Solution, error) {
+func NewSolution(variables []VariableKey, domains map[VariableKey][]DomainKey) (*Solution, error) {
 	s := &Solution{
-		Domains:     make(map[Variable][]Domain),
-		Constraints: make(map[Variable][]Constraint),
+		Domains:     make(map[VariableKey][]DomainKey),
+		Constraints: make(map[VariableKey][]Constraint),
 	}
 
 	for v, ds := range domains {
@@ -57,7 +58,7 @@ func (s *Solution) AddConstraint(c Constraint) {
 
 // Consistent check if the value assignment is consistent by checking all constraints
 // for the given variable againsts it
-func (s *Solution) Consistent(v Variable, assignment map[Variable]Domain) bool {
+func (s *Solution) Consistent(v VariableKey, assignment Assignment) bool {
 	for _, c := range s.Constraints[v] {
 		if !c.Satisfied(assignment) {
 			return false
@@ -68,18 +69,18 @@ func (s *Solution) Consistent(v Variable, assignment map[Variable]Domain) bool {
 }
 
 // Search for a solution using backtracking
-func (s *Solution) Search() map[Variable]Domain {
-	initAssignment := make(map[Variable]Domain)
+func (s *Solution) Search() Assignment {
+	initAssignment := make(Assignment)
 	return s.backtrackingSearch(initAssignment)
 }
 
-func (s *Solution) backtrackingSearch(assignment map[Variable]Domain) map[Variable]Domain {
+func (s *Solution) backtrackingSearch(assignment Assignment) Assignment {
 	if len(assignment) == len(s.Variables) {
 		return assignment
 	}
 
 	// select the first unassigned variable
-	var unassigned Variable
+	var unassigned VariableKey
 	for _, v := range s.Variables {
 		if _, found := assignment[v]; !found {
 			unassigned = v
@@ -101,8 +102,8 @@ func (s *Solution) backtrackingSearch(assignment map[Variable]Domain) map[Variab
 	return nil
 }
 
-func cloneAssignment(assignment map[Variable]Domain) map[Variable]Domain {
-	retval := make(map[Variable]Domain)
+func cloneAssignment(assignment Assignment) Assignment {
+	retval := make(Assignment)
 	for k, v := range assignment {
 		retval[k] = v
 	}
