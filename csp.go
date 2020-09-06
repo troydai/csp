@@ -2,111 +2,104 @@ package csp
 
 import "fmt"
 
-type (
-	// Assignment is a set of domain to variable assignemtn
-	Assignment map[VariableKey]DomainKey
+// Implement CSP in a standalone public function
 
-	// Constraint defines the CSP's constrains
-	Constraint interface {
-		Variables() []VariableKey
-		Satisfied(assignment Assignment) bool
-	}
+// Constraint defines an interface use which the user can implement logic for specific problems
+type Constraint interface {
+	// Variables return the varibles this constrain apply
+	Variables() []int
 
-	// Solution is a CSP solution
-	Solution struct {
-		Variables   []VariableKey
-		Domains     map[VariableKey][]DomainKey
-		Constraints map[VariableKey][]Constraint
-	}
+	// Satisfied returns true if the given assignment satisfy this constrain
+	Satisfied(assignment Assignment) bool
+}
 
-	// VariableKey identify variable
-	VariableKey int
+// Assignment is a set of domain assigned to variables
+type Assignment map[int]int
 
-	// DomainKey identify domain
-	DomainKey int
-)
+// ConstraintsMap group constraints for variables
+type ConstraintsMap map[int][]Constraint
 
-// NewSolution creates a new CSP solution
-func NewSolution(variables []VariableKey, domains map[VariableKey][]DomainKey) (*Solution, error) {
-	s := &Solution{
-		Domains:     make(map[VariableKey][]DomainKey),
-		Constraints: make(map[VariableKey][]Constraint),
-	}
+// DomainMap lists the allowed domain for each variable
+type DomainMap map[int][]int
 
-	for v, ds := range domains {
-		s.Domains[v] = ds
+// VariableList defines a list of variable
+type VariableList []int
+
+// BacktrackingCSP tries to solve a constraint-satisfaction problem using backtracking
+func BacktrackingCSP(
+	variables VariableList,
+	domain DomainMap,
+	constrains []Constraint,
+) (Assignment, error) {
+	// init
+	constraintsMap := make(ConstraintsMap)
+	for _, c := range constrains {
+		for _, v := range c.Variables() {
+			constraintsMap[v] = append(constraintsMap[v], c)
+		}
 	}
 
 	for _, v := range variables {
-		if ds, found := s.Domains[v]; !found || len(ds) == 0 {
-			return nil, fmt.Errorf("variable %v does not have any domains", v)
+		if ds, ok := domain[v]; !ok || len(ds) == 0 {
+			return nil, fmt.Errorf("variable %v doesn't have any domains", v)
 		}
-
-		s.Variables = append(s.Variables, v)
-		s.Constraints[v] = make([]Constraint, 0)
-	}
-
-	return s, nil
-}
-
-// AddConstraint adds a constraint to a solution
-func (s *Solution) AddConstraint(c Constraint) {
-	for _, v := range c.Variables() {
-		s.Constraints[v] = append(s.Constraints[v], c)
-	}
-}
-
-// Consistent check if the value assignment is consistent by checking all constraints
-// for the given variable againsts it
-func (s *Solution) Consistent(v VariableKey, assignment Assignment) bool {
-	for _, c := range s.Constraints[v] {
-		if !c.Satisfied(assignment) {
-			return false
+		if _, found := constraintsMap[v]; !found {
+			constraintsMap[v] = make([]Constraint, 0)
 		}
 	}
 
-	return true
+	return search(variables, domain, constraintsMap, make(Assignment))
 }
 
-// Search for a solution using backtracking
-func (s *Solution) Search() Assignment {
-	initAssignment := make(Assignment)
-	return s.backtrackingSearch(initAssignment)
-}
-
-func (s *Solution) backtrackingSearch(assignment Assignment) Assignment {
-	if len(assignment) == len(s.Variables) {
-		return assignment
+func search(
+	variables []int,
+	domain map[int][]int,
+	constrains ConstraintsMap,
+	assignment Assignment,
+) (Assignment, error) {
+	// found the assignment
+	if len(assignment) == len(variables) {
+		return assignment, nil
 	}
 
-	// select the first unassigned variable
-	var unassigned VariableKey
-	for _, v := range s.Variables {
+	// retrive the first unassigned variable
+	var unassigned int
+	for _, v := range variables {
 		if _, found := assignment[v]; !found {
 			unassigned = v
 			break
 		}
 	}
 
-	for _, d := range s.Domains[unassigned] {
-		assignmentCopy := cloneAssignment(assignment)
-		assignmentCopy[unassigned] = d
-		if s.Consistent(unassigned, assignmentCopy) {
-			result := s.backtrackingSearch(assignmentCopy)
+	// try each domain and backtrack if fails
+	for _, d := range domain[unassigned] {
+		newAssignment := make(Assignment)
+		for v, d := range assignment {
+			newAssignment[v] = d
+		}
+		newAssignment[unassigned] = d
+
+		// test if this domain of the variable satified all constraints
+		satified := true
+		for _, c := range constrains[unassigned] {
+			if !c.Satisfied(newAssignment) {
+				satified = false
+				break
+			}
+		}
+
+		// found one domain, try to build next variable base on current assignment
+		// if this branch doesn't workout, continue to try next domain
+		if satified {
+			result, err := search(variables, domain, constrains, newAssignment)
+			if err != nil {
+				return nil, err
+			}
 			if result != nil {
-				return result
+				return result, nil
 			}
 		}
 	}
 
-	return nil
-}
-
-func cloneAssignment(assignment Assignment) Assignment {
-	retval := make(Assignment)
-	for k, v := range assignment {
-		retval[k] = v
-	}
-
-	return retval
+	return nil, nil
 }

@@ -1,26 +1,23 @@
 package csp
 
+// use CSP solution to solve the eight queens problem
+
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-type eightQueenConstraints struct {
-	columns []VariableKey
+type eightQueenConstraints struct{}
+
+func buildVariables() []int {
+	return []int{1, 2, 3, 4, 5, 6, 7, 8}
 }
 
-// use CSP solution to solve the eight queens problem
-
-func buildVariables() []VariableKey {
-	return []VariableKey{1, 2, 3, 4, 5, 6, 7, 8}
-}
-
-func buildDomains() map[VariableKey][]DomainKey {
-	retval := make(map[VariableKey][]DomainKey)
+func buildDomains() map[int][]int {
+	retval := make(map[int][]int)
 	for _, c := range buildVariables() {
-		retval[c] = []DomainKey{1, 2, 3, 4, 5, 6, 7, 8}
+		retval[c] = []int{1, 2, 3, 4, 5, 6, 7, 8}
 	}
 	return retval
 }
@@ -32,8 +29,8 @@ func abs(n int) int {
 	return n
 }
 
-func (c *eightQueenConstraints) Variables() []VariableKey {
-	return c.columns
+func (c *eightQueenConstraints) Variables() []int {
+	return buildVariables()
 }
 
 func (c *eightQueenConstraints) Satisfied(assignment Assignment) bool {
@@ -58,27 +55,16 @@ func (c *eightQueenConstraints) Satisfied(assignment Assignment) bool {
 	return true
 }
 
-func printSolution(assignment Assignment) string {
-	cr := []rune("ABCDEFGH")
-	result := ""
-	for c, r := range assignment {
-		result += fmt.Sprintf("%q%v, ", cr[c-1], r)
-	}
-
-	return result
-}
-
 // TestEightQueens test eight queen solution
 func TestEightQueens(t *testing.T) {
-	s, err := NewSolution(buildVariables(), buildDomains())
-	s.AddConstraint(&eightQueenConstraints{columns: buildVariables()})
-	assert.NotNil(t, s)
-	assert.NoError(t, err)
-
-	result := s.Search()
-	r := printSolution(result)
+	// s, err := NewSolution(buildVariables(), buildDomains())
+	// s.AddConstraint(&eightQueenConstraints{columns: buildVariables()})
+	result, err := BacktrackingCSP(
+		buildVariables(),
+		buildDomains(),
+		[]Constraint{&eightQueenConstraints{}})
 
 	assert.NotNil(t, result)
-	assert.NotEmpty(t, result)
-	assert.NotEmpty(t, r)
+	assert.NoError(t, err)
+	assert.Equal(t, 8, len(result))
 }
