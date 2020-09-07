@@ -4,33 +4,40 @@ import "fmt"
 
 // Implement CSP in a standalone public function
 
-// Constraint defines an interface use which the user can implement logic for specific problems
-type Constraint interface {
-	// Variables return the varibles this constrain apply
-	Variables() []int
+type (
+	// Constraint defines an interface use which the user can implement logic for specific problems
+	Constraint interface {
+		// Variables return the varibles this constrain apply
+		Variables() []int
 
-	// Satisfied returns true if the given assignment satisfy this constrain
-	Satisfied(assignment Assignment) bool
-}
+		// Satisfied returns true if the given assignment satisfy this constrain
+		Satisfied(assignment Assignment) bool
+	}
 
-// Assignment is a set of domain assigned to variables
-type Assignment map[int]int
+	// Assignment is a set of domain assigned to variables
+	Assignment map[int]int
 
-// ConstraintsMap group constraints for variables
-type ConstraintsMap map[int][]Constraint
+	// ConstraintsMap group constraints for variables
+	ConstraintsMap map[int][]Constraint
 
-// DomainMap lists the allowed domain for each variable
-type DomainMap map[int][]int
+	// DomainMap lists the allowed domain for each variable
+	DomainMap map[int][]int
 
-// VariableList defines a list of variable
-type VariableList []int
+	// VariableList defines a list of variable
+	VariableList []int
+
+	collector struct {
+		results []Assignment
+	}
+)
 
 // BacktrackingCSP tries to solve a constraint-satisfaction problem using backtracking
 func BacktrackingCSP(
 	variables VariableList,
 	domain DomainMap,
 	constrains []Constraint,
-) (Assignment, error) {
+	firstResult bool,
+) ([]Assignment, error) {
 	// init
 	constraintsMap := make(ConstraintsMap)
 	for _, c := range constrains {
@@ -48,7 +55,11 @@ func BacktrackingCSP(
 		}
 	}
 
-	return search(variables, domain, constraintsMap, make(Assignment))
+	c := &collector{}
+	if err := search(variables, domain, constraintsMap, make(Assignment), firstResult, c); err != nil {
+		return nil, err
+	}
+	return c.Results(), nil
 }
 
 func search(
@@ -56,10 +67,13 @@ func search(
 	domain map[int][]int,
 	constrains ConstraintsMap,
 	assignment Assignment,
-) (Assignment, error) {
+	firstResult bool,
+	c *collector,
+) error {
 	// found the assignment
 	if len(assignment) == len(variables) {
-		return assignment, nil
+		c.Add(assignment)
+		return nil
 	}
 
 	// retrive the first unassigned variable
@@ -91,15 +105,23 @@ func search(
 		// found one domain, try to build next variable base on current assignment
 		// if this branch doesn't workout, continue to try next domain
 		if satified {
-			result, err := search(variables, domain, constrains, newAssignment)
-			if err != nil {
-				return nil, err
+			if err := search(variables, domain, constrains, newAssignment, firstResult, c); err != nil {
+				return err
 			}
-			if result != nil {
-				return result, nil
+
+			if firstResult && len(c.results) > 0 {
+				return nil
 			}
 		}
 	}
 
-	return nil, nil
+	return nil
+}
+
+func (c *collector) Add(assignment Assignment) {
+	c.results = append(c.results, assignment)
+}
+
+func (c *collector) Results() []Assignment {
+	return c.results
 }

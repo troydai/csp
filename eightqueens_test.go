@@ -59,12 +59,18 @@ func (c *eightQueenConstraints) Satisfied(assignment Assignment) bool {
 func TestEightQueens(t *testing.T) {
 	// s, err := NewSolution(buildVariables(), buildDomains())
 	// s.AddConstraint(&eightQueenConstraints{columns: buildVariables()})
-	result, err := BacktrackingCSP(
+	results, err := BacktrackingCSP(
 		buildVariables(),
 		buildDomains(),
-		[]Constraint{&eightQueenConstraints{}})
+		[]Constraint{&eightQueenConstraints{}},
+		false)
 
-	assert.NotNil(t, result)
+	assert.NotNil(t, results)
 	assert.NoError(t, err)
-	assert.Equal(t, 8, len(result))
+	// https://en.wikipedia.org/wiki/Eight_queens_puzzle
+	// 92 results in total
+	assert.Equal(t, 92, len(results))
+	for _, r := range results {
+		assert.Equal(t, 8, len(r))
+	}
 }
